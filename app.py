@@ -91,7 +91,7 @@ STEP_ORDER = [
 ]
 # -----------------------
 
-@st.cache_data
+@st.cache_data(ttl=60)
 def load_data():
     try:
         data = pd.read_csv(sheet_url)
