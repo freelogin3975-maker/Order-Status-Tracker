@@ -5,7 +5,7 @@ import base64
 # 1. 페이지 설정
 st.set_page_config(page_title="WIA Global Tracker", page_icon="📦", layout="centered")
 
-# --- [함수] 이미지를 Base64 코드로 변환 (HTML 삽입용) ---
+# --- [함수] 이미지를 Base64 코드로 변환 ---
 def get_img_as_base64(file):
     with open(file, "rb") as f:
         data = f.read()
@@ -14,7 +14,10 @@ def get_img_as_base64(file):
 # --- [DESIGN: CSS 스타일 적용] ---
 st.markdown("""
     <style>
-    /* 이미지 선택/드래그/우클릭 방지 (전역 설정) */
+    /* [추가됨] Google Fonts에서 Source Code Pro 폰트 불러오기 */
+    @import url('https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;600;700&display=swap');
+
+    /* 이미지 선택/드래그/우클릭 방지 */
     img {
         pointer-events: none;
         user-select: none;
@@ -59,35 +62,39 @@ st.markdown("""
         display: inline-block;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         font-size: 0.9rem;
-        white-space: nowrap; /* 텍스트 줄바꿈 방지 */
+        white-space: nowrap;
     }
 
-    /* [중요] 뱃지 컨테이너 반응형 설정 */
+    /* 뱃지 컨테이너 반응형 설정 */
     .badge-container {
         display: flex;
         align-items: center;
         height: 100%;
-        justify-content: center; /* PC: 중앙/우측 정렬 */
+        justify-content: center; /* PC: 중앙 정렬 */
     }
 
-    /* 모바일 화면(폭 600px 이하)일 때 뱃지 위치 변경 */
+    /* 모바일 화면(폭 600px 이하) 설정 */
     @media only screen and (max-width: 600px) {
         .badge-container {
             justify-content: flex-start !important; /* 모바일: 왼쪽 정렬 */
-            margin-top: 15px;      /* 위쪽 여백 추가 */
-            margin-left: 5px;      /* 왼쪽 살짝 여백 */
-            width: 100%;           /* 전체 너비 사용 */
+            margin-top: 15px;
+            margin-left: 5px;
+            width: 100%;
         }
     }
     </style>
 """, unsafe_allow_html=True)
 
-# --- [설정] 구글 시트 및 데이터 ---
+# --- [설정] 구글 시트 링크 ---
 sheet_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQz_9hUxpSgy0qh_lOwBqB4H4uVubgMNh5qTnhrky4tHSWKkc7HydOCGDAox3K-yDTtRvI0I0Dmh4xs/pub?gid=0&single=true&output=csv"
 
+# 진행 단계 설정 (5단계)
 STEP_ORDER = [
-    "in production", "ready to deliver", "shipping", 
-    "arrived", "stock", "sold"
+    "in production", 
+    "ready to deliver", 
+    "shipping", 
+    "arrived", 
+    "stock"
 ]
 # -----------------------
 
@@ -103,9 +110,8 @@ def load_data():
     except Exception as e:
         return None
 
-# --- 사이드바 (Sidebar) ---
+# --- 사이드바 ---
 with st.sidebar:
-    # 1. 로고 (상단 배치 & 선택 방지)
     try:
         logo_b64 = get_img_as_base64("logo.png")
         st.markdown(
@@ -118,7 +124,6 @@ with st.sidebar:
     st.write("") 
     st.divider()
 
-    # 2. Contact Us
     st.header("🏢 Contact Us") 
     st.info("""
     **Sales Dept.**
@@ -126,22 +131,28 @@ with st.sidebar:
     If you have any questions, 
     please contact us.
     
-    **📌Email:** sales@company.com
+    **📫Email:** sales@company.com
     """)
     
     st.caption("© 2025 WIA MACHINE TOOLS")
 
-# --- 메인 화면 (Main Content) ---
+# --- 메인 화면 ---
 
-# 1. 헤더 영역
-st.title("Order Status Tracker")
+# 헤더 간격 줄이기 (HTML 사용)
+st.markdown("""
+    <div style="margin-bottom: 5px;">
+        <h3 style='color: #003366; margin-bottom: 0; padding-bottom: 0;'>WIA MACHINE TOOLS</h3>
+        <h1 style='margin-top: 1px; padding-top: 0;'>Order Status Tracker</h1>
+    </div>
+    """, unsafe_allow_html=True)
+
 st.markdown("Enter your **SO Number** to track the status.")
 
 st.write("") 
 
 df = load_data()
 
-# 2. 검색창 영역
+# 검색창 영역
 with st.container(border=True):
     col_input, col_btn = st.columns([4, 1])
     with col_input:
@@ -149,7 +160,7 @@ with st.container(border=True):
     with col_btn:
         search_btn = st.button("TRACK", use_container_width=True)
 
-# 3. 결과 표시 영역
+# 결과 표시 영역
 if search_btn or user_input:
     if not user_input:
         st.warning("Please enter a SO Number.")
@@ -170,12 +181,10 @@ if search_btn or user_input:
                 eta = row.get('ETA', '-')
                 remarks = row.get('remarks', '-')
 
-                # --- 결과 카드 디자인 ---
-                st.markdown("#### 🔍 Tracking Result")
+                # --- 결과 카드 ---
+                st.markdown("#### 💡 Tracking Result")
                 
                 with st.container(border=True):
-                    # c_main(정보 영역) : c_badge(뱃지 영역)
-                    # 모바일에서는 c_badge가 c_main 아래로 자연스럽게 내려감
                     c_main, c_badge = st.columns([3, 1])
                     
                     with c_main:
@@ -183,18 +192,21 @@ if search_btn or user_input:
                             img_b64 = get_img_as_base64("machine.png")
                         except:
                             img_b64 = ""
-
-                        # HTML Flexbox: 아이콘과 텍스트를 가로로 배치 (모바일에서도 유지)
+                        
+                        # 텍스트 색상 및 스타일 개별 조절 영역
                         st.markdown(f"""
                         <div style="display: flex; align-items: flex-start; gap: 15px;">
                             <div style="flex-shrink: 0; width: 80px;">
                                 <img src="data:image/png;base64,{img_b64}" style="width: 100%; height: auto; pointer-events: none;">
                             </div>
                             <div style="flex-grow: 1;">
-                                <h3 style="margin: 0; padding: 0; font-size: 1.5rem; line-height: 1.2;">{p_name}</h3>
-                                <div style="color: #c79f00; font-weight: 500; font-size: 0.95rem; margin-top: 8px; line-height: 1.5;">
-                                    Client: <b>{client}</b><br>
-                                    Serial No: <b>{search_key}</b>
+                                <h3 style="margin: 0; padding: 0; font-size: 1.8rem; line-height: 1.2;">{p_name}</h3>
+                                <div style="margin-top: 8px; line-height: 1.2; font-size: 1.2rem;">
+                                    <span style="color: #d4d7d9; font-weight: 500;">Client:</span>
+                                    <span style="color: #e0b000; font-weight: bold;">{client}</span>
+                                    <br>
+                                    <span style="color: #d4d7d9; font-weight: 500;">Serial No:</span>
+                                    <span style="color: #e0b000; font-weight: bold;">{search_key}</span>
                                 </div>
                             </div>
                         </div>
@@ -208,7 +220,6 @@ if search_btn or user_input:
                         elif status == "shipping": badge_color = "#007bff"
                         elif status == "in production": badge_color = "#003366"
                         
-                        # 반응형 클래스 'badge-container' 적용
                         st.markdown(f"""
                             <div class="badge-container">
                                 <div style="background-color: {badge_color};" class="status-badge">
@@ -219,8 +230,8 @@ if search_btn or user_input:
 
                     st.divider()
 
-                    # (2) 진행 단계
-                    st.markdown("<div class='info-header'>Process Status</div>", unsafe_allow_html=True)
+                    # 진행 단계
+                    st.markdown("<div class='info-header'>▣ Process Status</div>", unsafe_allow_html=True)
                     
                     progress_percent = 0
                     if status in STEP_ORDER:
@@ -230,30 +241,59 @@ if search_btn or user_input:
                     st.progress(progress_percent)
                     
                     step_labels = " > ".join([s.title() for s in STEP_ORDER])
-                    st.caption(f"**Flow:** {step_labels}")
-                    # (% 숫자 삭제됨)
-                    st.info(f"Current Phase: **{status.upper()}**")
+                    
+                    # Flow 텍스트
+                    st.markdown(f"""
+                        <div style="margin-top: 5px; font-size: 0.9rem; color: #ababab;">
+                            <strong style="margin-right: 10px; color: #7d7d7d;">º Flow:</strong>
+                            {step_labels}
+                        </div>
+                    """, unsafe_allow_html=True)
+
+                    # Current Phase 박스
+                    st.markdown(f"""
+                        <div style="
+                            background-color: #112e41; 
+                            padding: 15px; 
+                            border-radius: 5px; 
+                            margin-top: 10px; 
+                            border: 1px solid #020f17;
+                            color: #30a5f3;">
+                            <span style="font-weight: bold; font-size: 1.0rem; margin-right: 10px;">Current Phase:</span>
+                            <span style="font-weight: 800; font-size: 1.2rem;">{status.upper()}</span>
+                        </div>
+                    """, unsafe_allow_html=True)
 
                     st.write("") 
 
-                    # (3) 일정 정보
-                    st.markdown("<div class='info-header'>Schedule & Logistics</div>", unsafe_allow_html=True)
+                    # 일정 정보
+                    st.markdown("<div class='info-header'>▣ Schedule & Logistics</div>", unsafe_allow_html=True)
                     
+                    # [수정됨] 폰트 변경: 'Source Code Pro' 적용
+                    date_style = "font-size: 1.1rem; font-weight: 350; color: #5ce488; font-family: 'Source Code Pro', monospace;"
+                    label_style = "font-weight: bold; margin-bottom: 5px; color: #bdc3c7; display: block;"
+
                     col1, col2, col3 = st.columns(3)
                     with col1:
-                        st.markdown("**⚙️ Production**")
-                        st.markdown(f"📅 `{prod_date}`")
+                        st.markdown(f"""
+                            <div style="{label_style}">⚙️ Production</div>
+                            <div style="{date_style}">📅 {prod_date}</div>
+                        """, unsafe_allow_html=True)
                     with col2:
-                        st.markdown("**🚢 ETD (Departure)**")
-                        st.markdown(f"📅 `{etd}`")
+                        st.markdown(f"""
+                            <div style="{label_style}">🚢 ETD (Departure)</div>
+                            <div style="{date_style}">📅 {etd}</div>
+                        """, unsafe_allow_html=True)
                     with col3:
-                        st.markdown("**🚢 ETA (Arrival)**")
-                        st.markdown(f"📅 `{eta}`")
+                        st.markdown(f"""
+                            <div style="{label_style}">🚢 ETA (Arrival)</div>
+                            <div style="{date_style}">📅 {eta}</div>
+                        """, unsafe_allow_html=True)
                     
-                    # (4) 비고 사항
+                    # 비고 사항
                     if remarks and str(remarks).lower() not in ["nan", "none", "-"]:
                         st.divider()
-                        st.markdown("**✅ Remarks**")
+                        st.markdown("**🏷️  Remarks**")
                         st.warning(remarks)
 
             else:
