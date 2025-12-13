@@ -14,7 +14,7 @@ def get_img_as_base64(file):
 # --- [DESIGN: CSS 스타일 적용] ---
 st.markdown("""
     <style>
-    /* [추가됨] Google Fonts에서 Source Code Pro 폰트 불러오기 */
+    /* [폰트] Google Fonts에서 Source Code Pro 폰트 불러오기 */
     @import url('https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;600;700&display=swap');
 
     /* 이미지 선택/드래그/우클릭 방지 */
@@ -102,8 +102,13 @@ STEP_ORDER = [
 def load_data():
     try:
         data = pd.read_csv(sheet_url)
-        if 'so_number' in data.columns:
-            data['so_number'] = data['so_number'].astype(str).str.strip()
+        
+        if 'PO_number' in data.columns:
+            data['PO_number'] = data['PO_number'].astype(str).str.strip()
+            
+        if 'serial_number' in data.columns:
+            data['serial_number'] = data['serial_number'].astype(str).str.strip()
+            
         if 'status' in data.columns:
             data['status'] = data['status'].astype(str).str.strip().str.lower()
         return data
@@ -138,7 +143,7 @@ with st.sidebar:
 
 # --- 메인 화면 ---
 
-# 헤더 간격 줄이기 (HTML 사용)
+# 헤더 간격 줄이기
 st.markdown("""
     <div style="margin-bottom: 5px;">
         <h3 style='color: #003366; margin-bottom: 0; padding-bottom: 0;'>WIA MACHINE TOOLS</h3>
@@ -146,7 +151,7 @@ st.markdown("""
     </div>
     """, unsafe_allow_html=True)
 
-st.markdown("Enter your **SO Number** to track the status.")
+st.markdown("Enter your **PO Number** (e.g. A25..., F25...) to track the status.")
 
 st.write("") 
 
@@ -156,25 +161,31 @@ df = load_data()
 with st.container(border=True):
     col_input, col_btn = st.columns([4, 1])
     with col_input:
-        user_input = st.text_input("SO Number", placeholder="e.g. 40100", label_visibility="collapsed")
+        user_input = st.text_input("PO Number", placeholder="e.g. A25-08-01", label_visibility="collapsed")
     with col_btn:
         search_btn = st.button("TRACK", use_container_width=True)
 
 # 결과 표시 영역
 if search_btn or user_input:
     if not user_input:
-        st.warning("Please enter a SO Number.")
+        st.warning("Please enter a PO Number.")
     else:
         if df is not None:
             search_key = user_input.strip()
-            result = df[df['so_number'] == search_key]
             
+            if 'PO_number' in df.columns:
+                result = df[df['PO_number'] == search_key]
+            else:
+                st.error("Error: 'PO_number' column not found in Google Sheet.")
+                result = pd.DataFrame()
+
             if not result.empty:
                 row = result.iloc[0]
                 
                 # 데이터 매핑
                 p_name = row.get('product_name', '-')
                 client = row.get('client_name', '-')
+                serial_val = row.get('serial_number', '-') 
                 status = row.get('status', 'unknown')
                 prod_date = row.get('prod_date', '-')
                 etd = row.get('ETD', '-')
@@ -193,24 +204,26 @@ if search_btn or user_input:
                         except:
                             img_b64 = ""
                         
-                        # 텍스트 색상 및 스타일 개별 조절 영역
-                        st.markdown(f"""
-                        <div style="display: flex; align-items: flex-start; gap: 15px;">
-                            <div style="flex-shrink: 0; width: 80px;">
-                                <img src="data:image/png;base64,{img_b64}" style="width: 100%; height: auto; pointer-events: none;">
-                            </div>
-                            <div style="flex-grow: 1;">
-                                <h3 style="margin: 0; padding: 0; font-size: 1.8rem; line-height: 1.2;">{p_name}</h3>
-                                <div style="margin-top: 8px; line-height: 1.2; font-size: 1.2rem;">
-                                    <span style="color: #d4d7d9; font-weight: 500;">Client:</span>
-                                    <span style="color: #e0b000; font-weight: bold;">{client}</span>
-                                    <br>
-                                    <span style="color: #d4d7d9; font-weight: 500;">Serial No:</span>
-                                    <span style="color: #e0b000; font-weight: bold;">{search_key}</span>
-                                </div>
-                            </div>
-                        </div>
-                        """, unsafe_allow_html=True)
+                        # [수정됨] HTML 코드 앞의 공백을 완전히 제거하여 마크다운이 코드로 인식하지 않도록 수정함
+                        # f-string 안의 내용을 왼쪽 벽에 딱 붙였습니다.
+                        st.markdown(f"""<div style="display: flex; align-items: flex-start; gap: 15px;">
+<div style="flex-shrink: 0; width: 80px;">
+<img src="data:image/png;base64,{img_b64}" style="width: 100%; height: auto; pointer-events: none;">
+</div>
+<div style="flex-grow: 1;">
+<h3 style="margin: 0; padding: 0; font-size: 1.8rem; line-height: 1.2;">{p_name}</h3>
+<div style="margin-top: 8px; line-height: 1.2; font-size: 1.2rem;">
+<span style="color: #ffffff; font-weight: 500;">Client:</span>
+<span style="color: #e0b000; font-weight: bold;">{client}</span>
+<br>
+<span style="color: #ffffff; font-weight: 500;">Serial No:</span>
+<span style="color: #e0b000; font-weight: bold;">{serial_val}</span>
+<br>
+<span style="color: #ffffff; font-weight: 500;">PO No:</span>
+<span style="color: #e0b000; font-weight: bold;">{search_key}</span>
+</div>
+</div>
+</div>""", unsafe_allow_html=True)
                     
                     with c_badge:
                         badge_color = "#6c757d"
@@ -220,13 +233,12 @@ if search_btn or user_input:
                         elif status == "shipping": badge_color = "#007bff"
                         elif status == "in production": badge_color = "#003366"
                         
-                        st.markdown(f"""
-                            <div class="badge-container">
-                                <div style="background-color: {badge_color};" class="status-badge">
-                                    {status.upper()}
-                                </div>
-                            </div>
-                        """, unsafe_allow_html=True)
+                        # 여기도 공백 제거
+                        st.markdown(f"""<div class="badge-container">
+<div style="background-color: {badge_color};" class="status-badge">
+{status.upper()}
+</div>
+</div>""", unsafe_allow_html=True)
 
                     st.divider()
 
@@ -245,7 +257,7 @@ if search_btn or user_input:
                     # Flow 텍스트
                     st.markdown(f"""
                         <div style="margin-top: 5px; font-size: 0.9rem; color: #ababab;">
-                            <strong style="margin-right: 10px; color: #7d7d7d;">º Flow:</strong>
+                            <strong style="margin-right: 10px; color: #7d7d7d;">Flow:</strong>
                             {step_labels}
                         </div>
                     """, unsafe_allow_html=True)
@@ -269,9 +281,8 @@ if search_btn or user_input:
                     # 일정 정보
                     st.markdown("<div class='info-header'>▣ Schedule & Logistics</div>", unsafe_allow_html=True)
                     
-                    # [수정됨] 폰트 변경: 'Source Code Pro' 적용
-                    date_style = "font-size: 1.1rem; font-weight: 350; color: #5ce488; font-family: 'Source Code Pro', monospace;"
-                    label_style = "font-weight: bold; margin-bottom: 5px; color: #bdc3c7; display: block;"
+                    date_style = "font-size: 1.1rem; font-weight: 600; color: #5ce488; font-family: 'Source Code Pro', monospace;"
+                    label_style = "font-weight: bold; margin-bottom: 5px; color: #ecf0f1; display: block;"
 
                     col1, col2, col3 = st.columns(3)
                     with col1:
