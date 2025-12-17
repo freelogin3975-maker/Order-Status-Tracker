@@ -103,11 +103,15 @@ def load_data():
     try:
         data = pd.read_csv(sheet_url)
         
+        # ▼▼▼ [수정됨] PO Number를 무조건 대문자로 변환 (.str.upper() 추가) ▼▼▼
         if 'PO_number' in data.columns:
-            data['PO_number'] = data['PO_number'].astype(str).str.strip()
+            data['PO_number'] = data['PO_number'].astype(str).str.strip().str.upper()
             
         if 'serial_number' in data.columns:
             data['serial_number'] = data['serial_number'].astype(str).str.strip()
+        
+        if 'access_code' in data.columns:
+            data['access_code'] = data['access_code'].astype(str).str.strip()
             
         if 'status' in data.columns:
             data['status'] = data['status'].astype(str).str.strip().str.lower()
@@ -151,27 +155,34 @@ st.markdown("""
     </div>
     """, unsafe_allow_html=True)
 
-st.markdown("Enter your **PO Number** (e.g. A25..., F25...) to track the status.")
+st.markdown("Enter your **PO Number** and **Access Code** to track the status.")
 
 st.write("") 
 
 df = load_data()
 
-# 검색창 영역
+# --- 검색창 영역 ---
 with st.container(border=True):
-    col_input, col_btn = st.columns([4, 1])
-    with col_input:
-        user_input = st.text_input("PO Number", placeholder="e.g. A25-08-01", label_visibility="collapsed")
-    with col_btn:
-        search_btn = st.button("TRACK", use_container_width=True)
+    c1, c2 = st.columns(2)
+    with c1:
+        user_input = st.text_input("PO Number", placeholder="e.g. A25-08-01")
+    with c2:
+        user_code = st.text_input("Access Code", type="password", placeholder="Password")
+    
+    st.write("") 
+    search_btn = st.button("TRACK", use_container_width=True)
 
-# 결과 표시 영역
-if search_btn or user_input:
+# --- 결과 표시 및 검증 영역 ---
+if search_btn:
     if not user_input:
         st.warning("Please enter a PO Number.")
+    elif not user_code:
+        st.warning("Please enter your Access Code.")
     else:
         if df is not None:
-            search_key = user_input.strip()
+            # ▼▼▼ [수정됨] 사용자 입력값도 무조건 대문자로 변환 (.upper() 추가) ▼▼▼
+            search_key = user_input.strip().upper()
+            input_code = user_code.strip()
             
             if 'PO_number' in df.columns:
                 result = df[df['PO_number'] == search_key]
@@ -182,31 +193,33 @@ if search_btn or user_input:
             if not result.empty:
                 row = result.iloc[0]
                 
-                # 데이터 매핑
-                p_name = row.get('product_name', '-')
-                client = row.get('client_name', '-')
-                serial_val = row.get('serial_number', '-') 
-                status = row.get('status', 'unknown')
-                prod_date = row.get('prod_date', '-')
-                etd = row.get('ETD', '-')
-                eta = row.get('ETA', '-')
-                remarks = row.get('remarks', '-')
-
-                # --- 결과 카드 ---
-                st.markdown("#### 💡 Tracking Result")
+                # 비밀번호 검증
+                sheet_code = str(row.get('access_code', '')).strip()
                 
-                with st.container(border=True):
-                    c_main, c_badge = st.columns([3, 1])
+                if sheet_code == input_code:
+                    # [인증 성공]
+                    p_name = row.get('product_name', '-')
+                    client = row.get('client_name', '-')
+                    serial_val = row.get('serial_number', '-') 
+                    status = row.get('status', 'unknown')
+                    prod_date = row.get('prod_date', '-')
+                    etd = row.get('ETD', '-')
+                    eta = row.get('ETA', '-')
+                    remarks = row.get('remarks', '-')
+
+                    # --- 결과 카드 ---
+                    st.markdown("#### 💡 Tracking Result")
                     
-                    with c_main:
-                        try:
-                            img_b64 = get_img_as_base64("machine.png")
-                        except:
-                            img_b64 = ""
+                    with st.container(border=True):
+                        c_main, c_badge = st.columns([3, 1])
                         
-                        # [수정됨] HTML 코드 앞의 공백을 완전히 제거하여 마크다운이 코드로 인식하지 않도록 수정함
-                        # f-string 안의 내용을 왼쪽 벽에 딱 붙였습니다.
-                        st.markdown(f"""<div style="display: flex; align-items: flex-start; gap: 15px;">
+                        with c_main:
+                            try:
+                                img_b64 = get_img_as_base64("machine.png")
+                            except:
+                                img_b64 = ""
+                            
+                            st.markdown(f"""<div style="display: flex; align-items: flex-start; gap: 15px;">
 <div style="flex-shrink: 0; width: 80px;">
 <img src="data:image/png;base64,{img_b64}" style="width: 100%; height: auto; pointer-events: none;">
 </div>
@@ -224,90 +237,93 @@ if search_btn or user_input:
 </div>
 </div>
 </div>""", unsafe_allow_html=True)
-                    
-                    with c_badge:
-                        badge_color = "#6c757d"
-                        if status == "sold": badge_color = "#28a745"
-                        elif status == "stock": badge_color = "#17a2b8"
-                        elif status == "arrived": badge_color = "#ffc107"
-                        elif status == "shipping": badge_color = "#007bff"
-                        elif status == "in production": badge_color = "#003366"
                         
-                        # 여기도 공백 제거
-                        st.markdown(f"""<div class="badge-container">
+                        with c_badge:
+                            badge_color = "#6c757d"
+                            if status == "sold": badge_color = "#28a745"
+                            elif status == "stock": badge_color = "#17a2b8"
+                            elif status == "arrived": badge_color = "#ffc107"
+                            elif status == "shipping": badge_color = "#007bff"
+                            elif status == "in production": badge_color = "#003366"
+                            
+                            st.markdown(f"""<div class="badge-container">
 <div style="background-color: {badge_color};" class="status-badge">
 {status.upper()}
 </div>
 </div>""", unsafe_allow_html=True)
 
-                    st.divider()
-
-                    # 진행 단계
-                    st.markdown("<div class='info-header'>▣ Process Status</div>", unsafe_allow_html=True)
-                    
-                    progress_percent = 0
-                    if status in STEP_ORDER:
-                        current_idx = STEP_ORDER.index(status) + 1
-                        progress_percent = int((current_idx / len(STEP_ORDER)) * 100)
-                    
-                    st.progress(progress_percent)
-                    
-                    step_labels = " > ".join([s.title() for s in STEP_ORDER])
-                    
-                    # Flow 텍스트
-                    st.markdown(f"""
-                        <div style="margin-top: 5px; font-size: 0.9rem; color: #ababab;">
-                            <strong style="margin-right: 10px; color: #7d7d7d;">Flow:</strong>
-                            {step_labels}
-                        </div>
-                    """, unsafe_allow_html=True)
-
-                    # Current Phase 박스
-                    st.markdown(f"""
-                        <div style="
-                            background-color: #112e41; 
-                            padding: 15px; 
-                            border-radius: 5px; 
-                            margin-top: 10px; 
-                            border: 1px solid #020f17;
-                            color: #30a5f3;">
-                            <span style="font-weight: bold; font-size: 1.0rem; margin-right: 10px;">Current Phase:</span>
-                            <span style="font-weight: 800; font-size: 1.2rem;">{status.upper()}</span>
-                        </div>
-                    """, unsafe_allow_html=True)
-
-                    st.write("") 
-
-                    # 일정 정보
-                    st.markdown("<div class='info-header'>▣ Schedule & Logistics</div>", unsafe_allow_html=True)
-                    
-                    date_style = "font-size: 1.1rem; font-weight: 600; color: #5ce488; font-family: 'Source Code Pro', monospace;"
-                    label_style = "font-weight: bold; margin-bottom: 5px; color: #ecf0f1; display: block;"
-
-                    col1, col2, col3 = st.columns(3)
-                    with col1:
-                        st.markdown(f"""
-                            <div style="{label_style}">⚙️ Production</div>
-                            <div style="{date_style}">📅 {prod_date}</div>
-                        """, unsafe_allow_html=True)
-                    with col2:
-                        st.markdown(f"""
-                            <div style="{label_style}">🚢 ETD (Departure)</div>
-                            <div style="{date_style}">📅 {etd}</div>
-                        """, unsafe_allow_html=True)
-                    with col3:
-                        st.markdown(f"""
-                            <div style="{label_style}">🚢 ETA (Arrival)</div>
-                            <div style="{date_style}">📅 {eta}</div>
-                        """, unsafe_allow_html=True)
-                    
-                    # 비고 사항
-                    if remarks and str(remarks).lower() not in ["nan", "none", "-"]:
                         st.divider()
-                        st.markdown("**🏷️  Remarks**")
-                        st.warning(remarks)
 
+                        # 진행 단계
+                        st.markdown("<div class='info-header'>▣ Process Status</div>", unsafe_allow_html=True)
+                        
+                        progress_percent = 0
+                        if status in STEP_ORDER:
+                            current_idx = STEP_ORDER.index(status) + 1
+                            progress_percent = int((current_idx / len(STEP_ORDER)) * 100)
+                        
+                        st.progress(progress_percent)
+                        
+                        step_labels = " > ".join([s.title() for s in STEP_ORDER])
+                        
+                        # Flow 텍스트
+                        st.markdown(f"""
+                            <div style="margin-top: 5px; font-size: 0.9rem; color: #ababab;">
+                                <strong style="margin-right: 10px; color: #7d7d7d;">Flow:</strong>
+                                {step_labels}
+                            </div>
+                        """, unsafe_allow_html=True)
+
+                        # Current Phase 박스
+                        st.markdown(f"""
+                            <div style="
+                                background-color: #112e41; 
+                                padding: 15px; 
+                                border-radius: 5px; 
+                                margin-top: 10px; 
+                                border: 1px solid #020f17;
+                                color: #30a5f3;">
+                                <span style="font-weight: bold; font-size: 1.0rem; margin-right: 10px;">Current Phase:</span>
+                                <span style="font-weight: 800; font-size: 1.2rem;">{status.upper()}</span>
+                            </div>
+                        """, unsafe_allow_html=True)
+
+                        st.write("") 
+
+                        # 일정 정보
+                        st.markdown("<div class='info-header'>▣ Schedule & Logistics</div>", unsafe_allow_html=True)
+                        
+                        date_style = "font-size: 1.1rem; font-weight: 600; color: #5ce488; font-family: 'Source Code Pro', monospace;"
+                        label_style = "font-weight: bold; margin-bottom: 5px; color: #ecf0f1; display: block;"
+
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            st.markdown(f"""
+                                <div style="{label_style}">⚙️ Production</div>
+                                <div style="{date_style}">📅 {prod_date}</div>
+                            """, unsafe_allow_html=True)
+                        with col2:
+                            st.markdown(f"""
+                                <div style="{label_style}">🚢 ETD (Departure)</div>
+                                <div style="{date_style}">📅 {etd}</div>
+                            """, unsafe_allow_html=True)
+                        with col3:
+                            st.markdown(f"""
+                                <div style="{label_style}">🚢 ETA (Arrival)</div>
+                                <div style="{date_style}">📅 {eta}</div>
+                            """, unsafe_allow_html=True)
+                        
+                        # 비고 사항
+                        if remarks and str(remarks).lower() not in ["nan", "none", "-"]:
+                            st.divider()
+                            st.markdown("**🏷️  Remarks**")
+                            st.warning(remarks)
+
+                else:
+                    st.error("⛔ Access Code is incorrect.")
+                    st.warning("Please check your Access Code and try again.")
+            
             else:
-                st.error(f"❌ Order not found: **{search_key}**")
+                st.error(f"❌ No order found for PO Number: **{search_key}**")
         else:
             st.error("System Error: Connection failed.")
